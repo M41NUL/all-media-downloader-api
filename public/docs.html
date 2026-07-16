@@ -257,6 +257,35 @@
 
   .foot{text-align:center;font-size:12px;color:var(--text-3);margin-top:4px;}
 
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:24px;
+    transform:translateX(-50%) translateY(20px);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:rgba(20,20,22,0.96);
+    border:1px solid var(--border-strong);
+    border-radius:14px;
+    padding:13px 18px;
+    max-width:calc(100% - 32px);
+    box-shadow:0 12px 30px -8px rgba(0,0,0,0.7);
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.25s ease, transform 0.25s ease;
+    z-index:999;
+  }
+  .toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+    pointer-events:auto;
+  }
+  .toast svg{width:18px;height:18px;color:var(--accent);flex-shrink:0;}
+  .toast span{font-size:13.5px;font-weight:600;color:var(--text-1);}
+
   .dev-links{
     display:flex;
     flex-direction:row;
@@ -449,12 +478,28 @@ Header: x-api-key: m41nul</div>
   </div>
 
   <div class="dev-copyright" id="devCopyright">© 2026 All Media Downloader — CODEX-M41NUL. All rights reserved.</div>
+
+  <div class="toast" id="toast">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="toastText">Message</span>
+  </div>
 </div>
 
 <script>
   document.getElementById('baseUrlText').textContent = 'https://all-media-downloader-api.onrender.com';
 
   const API_KEY = 'm41nul';
+
+  let toastTimer = null;
+  function showToast(message){
+    const toast = document.getElementById('toast');
+    document.getElementById('toastText').textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2500);
+  }
 
   document.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -486,7 +531,7 @@ Header: x-api-key: m41nul</div>
     const endpoint = '/api/download';
 
     if(!videoUrl){
-      alert('Video URL is required');
+      showToast('Video URL is required');
       return;
     }
 
