@@ -1,0 +1,25 @@
+# ============================================
+# RENDER DEPLOYMENT CONFIG
+# Deployment definition for Render.com
+# ============================================
+
+services:
+  - type: web
+    name: all-media-downloader-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DEBUG
+        value: false
+      - key: API_KEY
+        value: m41nul
+      - key: FIREBASE_CREDENTIALS_JSON
+        sync: false
+      - key: FIREBASE_DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "*"
