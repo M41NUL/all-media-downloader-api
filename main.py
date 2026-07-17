@@ -15,6 +15,7 @@ from routes import tiktok
 from routes import instagram
 from routes import facebook
 from routes import auto
+from routes import proxy
 
 app = FastAPI(
     title="All Media Downloader API",
@@ -36,6 +37,7 @@ app.include_router(tiktok.router)
 app.include_router(instagram.router)
 app.include_router(facebook.router)
 app.include_router(auto.router)
+app.include_router(proxy.router)
 
 app.mount("/public", StaticFiles(directory="public"), name="public")
 
