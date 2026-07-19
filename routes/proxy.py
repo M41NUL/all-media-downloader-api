@@ -13,6 +13,23 @@
 # just resolved it via yt-dlp — avoids that mismatch entirely.
 # ============================================
 
+# ============================================
+# ROUTE FILE - PROXY
+# Streams video to the bot.
+#
+# TikTok: the file was already downloaded to local disk at resolve time
+# (see core/service.py + core/downloader.py:download_with_ytdlp) because
+# handing out TikTok's signed CDN url — even re-fetched from this same
+# server with yt-dlp's own resolved headers — still gets rejected by
+# TikTok's CDN. So for TikTok, proxy_token always points to a local file;
+# this endpoint just streams it and cleans it up afterward.
+#
+# Facebook/Instagram: these still work fine being fetched directly from
+# their CDN urls, so video_url + generic headers continues to be used.
+# ============================================
+
+import os
+
 from fastapi import APIRouter, Query, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 import requests
@@ -22,18 +39,7 @@ from core import resolve_cache
 
 router = APIRouter()
 
-# Per-platform headers a real browser/app would send. TikTok in particular
-# checks Referer/Origin against tiktok.com and rejects mismatches.
 _PLATFORM_HEADERS = {
-    "tiktok": {
-        "User-Agent": (
-            "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
-        ),
-        "Referer": "https://www.tiktok.com/",
-        "Origin": "https://www.tiktok.com",
-        "Accept": "*/*",
-    },
     "facebook": {
         "User-Agent": (
             "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 "
@@ -63,44 +69,36 @@ _DEFAULT_HEADERS = {
 }
 
 
-@router.get("/api/proxy-video")
-def proxy_video(
-    video_url: str = Query("", description="Direct CDN url returned by a resolve endpoint (fallback if no proxy_token)"),
-    platform: str = Query("", description="Platform the video_url belongs to (tiktok/facebook/instagram)"),
-    proxy_token: str = Query("", description="Token from /api/download's proxy_token field — carries yt-dlp's exact resolved headers"),
-    api_key: str = Depends(verify_api_key),
-):
+def _stream_local_file(file_path: str, token: str):
+    def iterator():
+        try:
+            with open(file_path, "rb") as fh:
+                while True:
+                    chunk = fh.read(64 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+        finally:
+            resolve_cache.cleanup(token)
+
+    response_headers = {}
+    try:
+        response_headers["Content-Length"] = str(os.path.getsize(file_path))
+    except OSError:
+        pass
+
+    return StreamingResponse(
+        iterator(),
+        media_type="video/mp4",
+        headers=response_headers,
+    )
+
+
+def _stream_remote_url(video_url: str, platform: str):
     headers = _PLATFORM_HEADERS.get((platform or "").lower(), _DEFAULT_HEADERS)
-    fetch_url = video_url
-
-    # Prefer the cached (url, headers) pair from resolve time — these are
-    # yt-dlp's own exact headers for this CDN url, which is what TikTok's
-    # CDN actually checks. A guessed generic Referer/Origin is not enough;
-    # this was confirmed by 502s happening within ~1s of resolve, ruling
-    # out link expiry as the cause.
-    if proxy_token:
-        cached = resolve_cache.get(proxy_token)
-        if cached:
-            cached_url, cached_headers = cached
-            fetch_url = cached_url
-            if cached_headers:
-                headers = cached_headers
-        elif not fetch_url:
-            raise HTTPException(
-                status_code=410,
-                detail="This download link has expired. Please send the link again.",
-            )
-
-    if not fetch_url:
-        raise HTTPException(status_code=400, detail="No video_url or valid proxy_token provided")
 
     try:
-        upstream = requests.get(
-            fetch_url,
-            headers=headers,
-            stream=True,
-            timeout=45,
-        )
+        upstream = requests.get(video_url, headers=headers, stream=True, timeout=45)
         upstream.raise_for_status()
     except requests.exceptions.HTTPError as error:
         status = error.response.status_code if error.response is not None else 502
@@ -111,7 +109,7 @@ def proxy_video(
     except requests.exceptions.RequestException as error:
         raise HTTPException(status_code=502, detail=f"Failed to reach source CDN: {error}")
 
-    def stream():
+    def iterator():
         try:
             for chunk in upstream.iter_content(chunk_size=64 * 1024):
                 if chunk:
@@ -125,7 +123,29 @@ def proxy_video(
         response_headers["Content-Length"] = content_length
 
     return StreamingResponse(
-        stream(),
+        iterator(),
         media_type=upstream.headers.get("Content-Type", "video/mp4"),
         headers=response_headers,
     )
+
+
+@router.get("/api/proxy-video")
+def proxy_video(
+    video_url: str = Query("", description="Direct CDN url (facebook/instagram only)"),
+    platform: str = Query("", description="Platform the video belongs to"),
+    proxy_token: str = Query("", description="Token from /api/download's proxy_token field (tiktok — points to a locally downloaded file)"),
+    api_key: str = Depends(verify_api_key),
+):
+    if proxy_token:
+        file_path = resolve_cache.get_file(proxy_token)
+        if not file_path:
+            raise HTTPException(
+                status_code=410,
+                detail="This download link has expired or was already used. Please send the link again.",
+            )
+        return _stream_local_file(file_path, proxy_token)
+
+    if video_url:
+        return _stream_remote_url(video_url, platform)
+
+    raise HTTPException(status_code=400, detail="No proxy_token or video_url provided")

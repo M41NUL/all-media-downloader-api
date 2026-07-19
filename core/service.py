@@ -3,7 +3,7 @@
 # Orchestrates extraction: yt-dlp only, no scraper fallback
 # ============================================
 
-from core.downloader import extract_with_ytdlp, DownloaderError
+from core.downloader import extract_with_ytdlp, download_with_ytdlp, DownloaderError
 from core import resolve_cache
 
 
@@ -12,17 +12,23 @@ class ExtractionFailedError(Exception):
 
 
 def resolve_media(url: str, platform: str) -> dict:
+    if platform == "tiktok":
+        # Handing TikTok's resolved signed CDN url to a different
+        # process/server to fetch later gets rejected by TikTok's CDN
+        # (confirmed: still 403/502 even with yt-dlp's own resolved
+        # headers). So for TikTok we download the actual file here, on
+        # the same server that resolves it, in a single yt-dlp pass —
+        # and cache the local file path under a token. The proxy
+        # endpoint streams that file directly; no CDN url is ever
+        # handed to the bot.
+        try:
+            file_path, result = download_with_ytdlp(url, platform)
+        except DownloaderError as error:
+            raise ExtractionFailedError(str(error))
+        result["proxy_token"] = resolve_cache.put_file(file_path)
+        return result
+
     try:
-        result = extract_with_ytdlp(url, platform)
+        return extract_with_ytdlp(url, platform)
     except DownloaderError as error:
         raise ExtractionFailedError(str(error))
-
-    resolved_headers = result.pop("_resolved_headers", None)
-
-    if platform == "tiktok":
-        # TikTok's CDN checks the exact headers yt-dlp resolved (not a
-        # generic guess), so cache them under a token the proxy endpoint
-        # can look up right when it actually fetches the file.
-        result["proxy_token"] = resolve_cache.put(result["video_url"], resolved_headers)
-
-    return result

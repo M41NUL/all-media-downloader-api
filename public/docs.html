@@ -400,6 +400,16 @@
         </button>
       </div>
     </div>
+    <div class="ep-card">
+      <div class="ep-top"><span class="method">GET</span><span class="ep-path">/api/proxy-video</span></div>
+      <div class="ep-desc">Streams the actual video bytes. Required for TikTok — see note below.</div>
+      <div class="copy-row" style="margin-top:10px;">
+        <div class="mono" id="ep5">https://all-media-downloader-api.onrender.com/api/proxy-video?proxy_token=</div>
+        <button class="copy-btn" data-copy-target="ep5" aria-label="Copy endpoint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+    </div>
 
     <div class="kv" style="margin-top:18px;">
       <div class="k">Query parameter</div>
@@ -414,20 +424,40 @@ Header: x-api-key: m41nul</div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
       </button>
     </div>
+
+    <div class="note" style="margin-top:14px;">
+      <b>TikTok note:</b> TikTok's CDN rejects direct fetches of the <code>video_url</code> from anywhere other than this server. So for TikTok, <code>video_url</code> is informational only — to actually get the video bytes, call <b>/api/proxy-video</b> with the <code>proxy_token</code> from the response, e.g.<br/>
+      <span class="mono" style="display:inline-block;margin-top:6px;">/api/proxy-video?proxy_token=&lt;value from response&gt;</span><br/>
+      This streams the already-downloaded file directly (binary <code>video/mp4</code>, not JSON). The token is single-use and expires shortly after resolving, so call it right after <code>/api/download</code>/<code>/api/tiktok</code>, not later. Facebook and Instagram don't need this — their <code>video_url</code> can be fetched directly.
+    </div>
   </div>
 
   <div class="panel">
-    <div class="section-label">Sample response (200 OK)</div>
+    <div class="section-label">Sample response (200 OK) — Facebook / Instagram</div>
     <pre>{
   "success": true,
   "caption": "full caption text",
-  "platform": "tiktok",
+  "platform": "facebook",
   "format": "mp4",
   "size": "12.30 MB",
   "duration": "00:45",
   "video_url": "https://direct-video-link",
   "thumbnail_url": "https://thumbnail-link",
-  "quality": "hd"
+  "quality": "best",
+  "proxy_token": null
+}</pre>
+    <div class="section-label" style="margin-top:18px;">Sample response (200 OK) — TikTok</div>
+    <pre>{
+  "success": true,
+  "caption": "full caption text",
+  "platform": "tiktok",
+  "format": "mp4",
+  "size": "1.62 MB",
+  "duration": "00:15",
+  "video_url": "https://v19-webapp-prime.us.tiktok.com/... (informational only, do not fetch directly)",
+  "thumbnail_url": "https://thumbnail-link",
+  "quality": "best",
+  "proxy_token": "e262ea1e389042c7bd58e561381c2e09"
 }</pre>
   </div>
 
@@ -456,6 +486,13 @@ Header: x-api-key: m41nul</div>
       </button>
     </div>
     <pre id="rJson">{}</pre>
+
+    <a id="proxyDownloadLink" href="#" style="display:none;margin-top:14px;" class="btn" target="_blank" rel="noopener">
+      <span class="btn-label">⬇ Download video (via proxy_token)</span>
+    </a>
+    <div id="proxyDownloadNote" style="display:none;font-size:12px;color:var(--text-3);margin-top:6px;">
+      This platform requires /api/proxy-video — direct video_url fetches are rejected by the source CDN. The token is single-use and short-lived, so download promptly.
+    </div>
   </div>
 
   <div class="dev-links">
@@ -575,10 +612,23 @@ Header: x-api-key: m41nul</div>
         statusBadge.className = 'badge err';
         statusText.textContent = 'Failed';
       }
+
+      const proxyLink = document.getElementById('proxyDownloadLink');
+      const proxyNote = document.getElementById('proxyDownloadNote');
+      if(res.ok && data.success && data.proxy_token){
+        proxyLink.href = `/api/proxy-video?proxy_token=${encodeURIComponent(data.proxy_token)}&platform=${encodeURIComponent(data.platform || '')}&api_key=${encodeURIComponent(API_KEY)}`;
+        proxyLink.style.display = 'inline-flex';
+        proxyNote.style.display = 'block';
+      } else {
+        proxyLink.style.display = 'none';
+        proxyNote.style.display = 'none';
+      }
     } catch (e) {
       statusBadge.className = 'badge err';
       statusText.textContent = 'Network Error';
       document.getElementById('rJson').textContent = String(e);
+      document.getElementById('proxyDownloadLink').style.display = 'none';
+      document.getElementById('proxyDownloadNote').style.display = 'none';
     } finally {
       sendBtn.disabled = false;
       sendBtn.classList.remove('loading');
