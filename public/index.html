@@ -778,12 +778,15 @@
     startUptimeTicker();
   }
 
+  let statsFailCount = 0;
+
   async function loadStats(){
     try{
       const res = await fetch('/api/stats', { cache: 'no-store' });
       if(!res.ok) throw new Error('bad response');
       const data = await res.json();
 
+      statsFailCount = 0;
       setStatus(data.status || 'operational');
 
       syncUptime(data.uptime || 0);
@@ -812,6 +815,9 @@
       document.getElementById('info-deploy').textContent = formatDeploy(data.lastDeploy);
 
     }catch(e){
+      statsFailCount++;
+      if(statsFailCount < 3) return; // ignore a transient blip, only show Offline after repeated failures
+
       setStatus('offline');
       if(uptimeTickHandle){ clearInterval(uptimeTickHandle); uptimeTickHandle = null; }
       document.getElementById('stat-uptime').textContent = '00:00:00';

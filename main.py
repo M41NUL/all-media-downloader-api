@@ -24,10 +24,13 @@ app = FastAPI(
     redoc_url=None,
 )
 
+_origins_env = ALLOWED_ORIGINS
+_is_wildcard = _origins_env == ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_origins=_origins_env,
+    allow_credentials=not _is_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )

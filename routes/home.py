@@ -25,7 +25,10 @@ def serve_docs_page():
 
 @router.get("/api/stats")
 def get_stats():
-    system_snapshot = get_system_snapshot()
+    try:
+        system_snapshot = get_system_snapshot()
+    except Exception:
+        system_snapshot = {"uptime": 0, "cpuPercent": 0, "memoryMB": 0, "systemMemoryPercent": 0}
 
     try:
         stats_summary = database.get_stats_summary()
