@@ -49,6 +49,22 @@ app.mount("/public", StaticFiles(directory="public"), name="public")
 def on_startup():
     import database
     database.increment_restart_count()
+    _start_daily_restart_timer()
+
+
+def _start_daily_restart_timer():
+    import os
+    import threading
+
+    RESTART_AFTER_SECONDS = 24 * 60 * 60  # 24 hours
+
+    def _restart():
+        print(f"[auto-restart] {RESTART_AFTER_SECONDS}s elapsed, restarting process now.")
+        os._exit(0)  # non-graceful exit; Render's platform restarts the service automatically
+
+    timer = threading.Timer(RESTART_AFTER_SECONDS, _restart)
+    timer.daemon = True
+    timer.start()
 
 
 if __name__ == "__main__":
