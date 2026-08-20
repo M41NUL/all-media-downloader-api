@@ -94,20 +94,65 @@ All endpoints return the same response shape:
 {
   "success": true,
   "caption": "full caption text",
+  "title": "video title",
+  "filename": "video title - All Media Downloader.mp4",
   "platform": "tiktok",
   "format": "mp4",
   "size": "12.30 MB",
   "duration": "00:45",
   "video_url": "https://direct-video-link",
   "thumbnail_url": "https://thumbnail-link",
-  "quality": "hd"
+  "quality": "hd",
+  "proxy_token": "e262ea1e389042c7bd58e561381c2e09"
 }
 ```
+
+`filename` is the ready-to-use output filename (`<title/caption> - All Media Downloader.mp4`),
+truncated automatically if the title is long, with unsafe filesystem characters stripped.
+
+`proxy_token` is only present for TikTok, where the file is downloaded on the server first
+(TikTok's CDN rejects direct fetches from a different server/process). For Facebook and
+Instagram, `proxy_token` is `null` and `video_url` can be fetched directly or passed to
+`/api/proxy-video`.
+
+### GET /api/proxy-video
+
+Streams the video back with a proper `Content-Disposition` header, so clients that save the
+response directly to disk (browsers, Telegram bots, etc.) get the clean filename instead of a
+raw video id.
+
+```
+GET /api/proxy-video?proxy_token=<token>&api_key=m41nul
+GET /api/proxy-video?video_url=<url>&platform=facebook&filename=<name>&api_key=m41nul
+```
+
+- `proxy_token` — required for TikTok, returned by the download endpoints
+- `video_url` + `platform` — for Facebook/Instagram, used instead of `proxy_token`
+- `filename` — optional override; falls back to the resolved title-based filename
 
 ### GET /api/stats
 
 Returns live server stats used by the status page, including uptime, cpu percent,
 memory usage, download counters and recent activity.
+
+### GET /api/ytdlp-status
+
+Returns the currently installed yt-dlp version, the latest version known from PyPI, whether
+auto-update is enabled, and the result of the last update check.
+
+```json
+{
+  "installedVersion": "2026.07.04",
+  "latestKnownVersion": "2026.07.04",
+  "autoUpdateEnabled": true,
+  "lastStatus": "up_to_date"
+}
+```
+
+yt-dlp is kept current automatically: `requirements.txt` uses `yt-dlp>=...` so every Render
+build pulls the latest release, and a background checker (interval controlled by
+`YTDLP_UPDATE_CHECK_INTERVAL_SECONDS`, default 6 hours) also checks PyPI at runtime and
+upgrades in place if a newer version is available. Disable with `YTDLP_AUTO_UPDATE=false`.
 
 ## Deployment on Render
 

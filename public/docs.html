@@ -416,6 +416,11 @@
       <div class="v"><b>url</b> — the video link you want to resolve</div>
     </div>
 
+    <div class="kv" style="margin-top:10px;">
+      <div class="k">Proxy parameters</div>
+      <div class="v"><b>proxy_token</b> (TikTok) or <b>video_url</b>+<b>platform</b> (Facebook/Instagram), plus optional <b>filename</b> — see <code>/api/proxy-video</code> below</div>
+    </div>
+
     <div class="section-label" style="margin-top:6px;">Full example request</div>
     <div class="copy-row" style="align-items:flex-start;">
       <div class="mono" id="fullExample">GET https://all-media-downloader-api.onrender.com/api/download?url=https://vt.tiktok.com/XXXXXXX/
@@ -428,7 +433,7 @@ Header: x-api-key: m41nul</div>
     <div class="note" style="margin-top:14px;">
       <b>TikTok note:</b> TikTok's CDN rejects direct fetches of the <code>video_url</code> from anywhere other than this server. So for TikTok, <code>video_url</code> is informational only — to actually get the video bytes, call <b>/api/proxy-video</b> with the <code>proxy_token</code> from the response, e.g.<br/>
       <span class="mono" style="display:inline-block;margin-top:6px;">/api/proxy-video?proxy_token=&lt;value from response&gt;</span><br/>
-      This streams the already-downloaded file directly (binary <code>video/mp4</code>, not JSON). The token is single-use and expires shortly after resolving, so call it right after <code>/api/download</code>/<code>/api/tiktok</code>, not later. Facebook and Instagram don't need this — their <code>video_url</code> can be fetched directly.
+      This streams the already-downloaded file directly (binary <code>video/mp4</code>, not JSON) with a proper <code>Content-Disposition</code> header, so it saves with the clean <code>filename</code> from the response instead of a raw video id. The token is single-use and expires shortly after resolving, so call it right after <code>/api/download</code>/<code>/api/tiktok</code>, not later. Facebook and Instagram don't need this — their <code>video_url</code> can be fetched directly, or passed to <b>/api/proxy-video</b> as <code>video_url</code>+<code>platform</code>(+optional <code>filename</code>) to get the same clean-filename download behavior.
     </div>
   </div>
 
@@ -437,6 +442,8 @@ Header: x-api-key: m41nul</div>
     <pre>{
   "success": true,
   "caption": "full caption text",
+  "title": "video title",
+  "filename": "video title - All Media Downloader.mp4",
   "platform": "facebook",
   "format": "mp4",
   "size": "12.30 MB",
@@ -450,6 +457,8 @@ Header: x-api-key: m41nul</div>
     <pre>{
   "success": true,
   "caption": "full caption text",
+  "title": "video title",
+  "filename": "video title - All Media Downloader.mp4",
   "platform": "tiktok",
   "format": "mp4",
   "size": "1.62 MB",
@@ -488,10 +497,10 @@ Header: x-api-key: m41nul</div>
     <pre id="rJson">{}</pre>
 
     <a id="proxyDownloadLink" href="#" style="display:none;margin-top:14px;" class="btn" target="_blank" rel="noopener">
-      <span class="btn-label">⬇ Download video (via proxy_token)</span>
+      <span class="btn-label">⬇ Download video (clean filename)</span>
     </a>
     <div id="proxyDownloadNote" style="display:none;font-size:12px;color:var(--text-3);margin-top:6px;">
-      This platform requires /api/proxy-video — direct video_url fetches are rejected by the source CDN. The token is single-use and short-lived, so download promptly.
+      Uses /api/proxy-video so the file saves with the clean <code>filename</code> from the response instead of a raw video id. For TikTok this also avoids CDN rejection — the token is single-use and short-lived, so download promptly.
     </div>
   </div>
 
@@ -616,7 +625,11 @@ Header: x-api-key: m41nul</div>
       const proxyLink = document.getElementById('proxyDownloadLink');
       const proxyNote = document.getElementById('proxyDownloadNote');
       if(res.ok && data.success && data.proxy_token){
-        proxyLink.href = `/api/proxy-video?proxy_token=${encodeURIComponent(data.proxy_token)}&platform=${encodeURIComponent(data.platform || '')}&api_key=${encodeURIComponent(API_KEY)}`;
+        proxyLink.href = `/api/proxy-video?proxy_token=${encodeURIComponent(data.proxy_token)}&platform=${encodeURIComponent(data.platform || '')}&filename=${encodeURIComponent(data.filename || '')}&api_key=${encodeURIComponent(API_KEY)}`;
+        proxyLink.style.display = 'inline-flex';
+        proxyNote.style.display = 'block';
+      } else if(res.ok && data.success && data.video_url){
+        proxyLink.href = `/api/proxy-video?video_url=${encodeURIComponent(data.video_url)}&platform=${encodeURIComponent(data.platform || '')}&filename=${encodeURIComponent(data.filename || '')}&api_key=${encodeURIComponent(API_KEY)}`;
         proxyLink.style.display = 'inline-flex';
         proxyNote.style.display = 'block';
       } else {
