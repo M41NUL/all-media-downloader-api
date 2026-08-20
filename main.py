@@ -1,8 +1,3 @@
-# ============================================
-# MAIN FILE
-# Application entry point, mounts routes and static files
-# ============================================
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -51,16 +46,19 @@ def on_startup():
     database.increment_restart_count()
     _start_daily_restart_timer()
 
+    from core.ytdlp_updater import start_background_updater
+    start_background_updater()
+
 
 def _start_daily_restart_timer():
     import os
     import threading
 
-    RESTART_AFTER_SECONDS = 24 * 60 * 60  # 24 hours
+    RESTART_AFTER_SECONDS = 24 * 60 * 60
 
     def _restart():
         print(f"[auto-restart] {RESTART_AFTER_SECONDS}s elapsed, restarting process now.")
-        os._exit(0)  # non-graceful exit; Render's platform restarts the service automatically
+        os._exit(0)
 
     timer = threading.Timer(RESTART_AFTER_SECONDS, _restart)
     timer.daemon = True

@@ -1,8 +1,3 @@
-# ============================================
-# CORE MODULE - SYSTEM STATS
-# CPU, memory and process uptime monitoring
-# ============================================
-
 import time
 from datetime import datetime, timezone
 import psutil

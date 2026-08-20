@@ -1,8 +1,3 @@
-# ============================================
-# ROUTE FILE - AUTO
-# Single endpoint that auto detects the platform from the url
-# ============================================
-
 import time
 from fastapi import APIRouter, Query, Request, HTTPException, Depends
 
@@ -41,6 +36,8 @@ def auto_download(
     return {
         "success": True,
         "caption": result["caption"],
+        "title": result.get("title"),
+        "filename": result.get("filename"),
         "platform": result["platform"],
         "format": result["format"],
         "size": result["size"],

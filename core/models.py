@@ -1,8 +1,3 @@
-# ============================================
-# CORE MODULE - MODELS
-# Shared response data structures
-# ============================================
-
 from typing import Optional
 from pydantic import BaseModel
 

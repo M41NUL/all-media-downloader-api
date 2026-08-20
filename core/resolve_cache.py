@@ -1,36 +1,20 @@
-# ============================================
-# CORE MODULE - RESOLVE CACHE
-# Short-lived in-memory cache mapping a token -> a locally downloaded file
-#
-# Why this exists: TikTok's CDN rejects fetches for its signed video urls
-# when they come from a different process/server than the one that
-# resolved them via yt-dlp (confirmed even when passing yt-dlp's own
-# resolved headers along). So instead of handing out a CDN url, the API
-# actually downloads the file to local disk at resolve time and hands back
-# an opaque token; the proxy-video endpoint looks the token up to find the
-# local file and streams it directly — no second CDN fetch happens at all.
-#
-# In-memory and single-process only — fine for a single Render free-tier
-# instance. Entries (and their temp files/dirs) are cleaned up once
-# consumed, or after TTL expiry as a safety net for abandoned downloads.
-# ============================================
-
 import os
 import shutil
 import time
 import uuid
 import threading
 
-_TTL_SECONDS = 10 * 60  # safety net for files that are never claimed
+_TTL_SECONDS = 10 * 60
 _lock = threading.Lock()
 _store = {}
 
 
-def put_file(file_path: str) -> str:
+def put_file(file_path: str, filename: str = None) -> str:
     token = uuid.uuid4().hex
     with _lock:
         _store[token] = {
             "file_path": file_path,
+            "filename": filename or os.path.basename(file_path),
             "expires_at": time.time() + _TTL_SECONDS,
         }
         _prune_locked()
@@ -54,6 +38,18 @@ def get_file(token: str):
             _remove_locked(token)
             return None
         return entry["file_path"]
+
+
+def get_filename(token: str):
+    """
+    Returns the display filename associated with this token (falls back to
+    the on-disk basename if none was set), or None if the token is missing.
+    """
+    with _lock:
+        entry = _store.get(token)
+        if not entry:
+            return None
+        return entry.get("filename") or os.path.basename(entry["file_path"])
 
 
 def cleanup(token: str) -> None:

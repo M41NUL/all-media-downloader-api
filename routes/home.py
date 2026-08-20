@@ -1,14 +1,10 @@
-# ============================================
-# ROUTE FILE - HOME
-# Serves the status page and provides live stats api
-# ============================================
-
 import time
 
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
 from core.system_stats import get_system_snapshot, get_process_start_iso
+from core.ytdlp_updater import get_status as get_ytdlp_status
 import database
 from version import VERSION
 
@@ -32,10 +28,7 @@ def serve_docs_page():
 def get_stats():
     now = time.time()
 
-    # Serve from cache if fresh. This avoids hitting Firebase with several
-    # blocking calls on every single poll (dashboard polls every 2s), which
-    # was causing requests to queue up / time out and the dashboard to flap
-    # between Online and Offline.
+
     if _stats_cache["data"] is not None and (now - _stats_cache["ts"]) < _STATS_CACHE_TTL_SECONDS:
         cached = dict(_stats_cache["data"])
         cached["uptime"] = get_system_snapshot().get("uptime", cached.get("uptime", 0))
@@ -89,3 +82,8 @@ def get_stats():
     _stats_cache["ts"] = now
 
     return result
+
+
+@router.get("/api/ytdlp-status")
+def get_ytdlp_version_status():
+    return get_ytdlp_status()

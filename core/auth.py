@@ -1,8 +1,3 @@
-# ============================================
-# CORE MODULE - AUTH
-# Shared api key verification dependency
-# ============================================
-
 from fastapi import Header, HTTPException, Query
 from typing import Optional
 

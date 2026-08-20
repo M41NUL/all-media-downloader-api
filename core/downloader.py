@@ -1,9 +1,3 @@
-# ============================================
-# CORE MODULE - DOWNLOADER
-# Primary media extraction engine using yt-dlp
-# yt-dlp only - no third-party scraper fallback
-# ============================================
-
 import os
 import tempfile
 import yt_dlp
@@ -14,7 +8,7 @@ import base64
 from urllib.parse import urlparse, parse_qs, unquote
 
 from core.utils import format_size, format_duration, clean_caption
-from config import PREFERRED_QUALITY
+from config import PREFERRED_QUALITY, FILENAME_BRAND_SUFFIX, MAX_FILENAME_LENGTH
 
 
 class DownloaderError(Exception):
@@ -31,11 +25,6 @@ _SIZE_CHECK_HEADERS = {
 
 
 def _get_size_via_head(video_url: str):
-    # Plain requests.head() with no headers gets rejected or answered
-    # without Content-Length by some CDNs (this was the cause of
-    # Facebook downloads showing "unknown" size). Sending browser-like
-    # headers, and falling back to a ranged GET for CDNs that don't
-    # support HEAD properly, is more reliable.
     try:
         resp = requests.head(
             video_url, timeout=8, allow_redirects=True, headers=_SIZE_CHECK_HEADERS
@@ -58,8 +47,6 @@ def _get_size_via_head(video_url: str):
                 return int(total)
         content_length = resp.headers.get("Content-Length")
         if content_length and resp.status_code != 206:
-            # Full (non-partial) response — Content-Length here is the
-            # real total size.
             return int(content_length)
     except Exception:
         pass
@@ -103,6 +90,22 @@ def _format_string_for(platform: str) -> str:
     return "best[ext=mp4][vcodec!=none][acodec!=none]/best[ext=mp4]/best"
 
 
+def _safe_filename(title: str, ext: str) -> str:
+    title = title or "video"
+    title = re.sub(r'[\\/*?:"<>|\n\r\t]', "", title)
+    title = re.sub(r"\s+", " ", title).strip() or "video"
+
+    ext = (ext or "mp4").lstrip(".")
+    suffix = f" - {FILENAME_BRAND_SUFFIX}" if FILENAME_BRAND_SUFFIX else ""
+    fixed_length = len(suffix) + len(".") + len(ext)
+
+    max_title_length = max(MAX_FILENAME_LENGTH - fixed_length, 1)
+    if len(title) > max_title_length:
+        title = title[:max_title_length].rstrip()
+
+    return f"{title}{suffix}.{ext}"
+
+
 def _build_result(info: dict, platform: str, video_url: str = None) -> dict:
     video_url = video_url or info.get("url")
 
@@ -112,6 +115,11 @@ def _build_result(info: dict, platform: str, video_url: str = None) -> dict:
         video_url = best_format.get("url")
 
     caption_source = info.get("description") or info.get("title") or ""
+    cleaned_caption = clean_caption(caption_source)
+
+
+    filename_source = caption_source.strip() or info.get("title") or "video"
+    ext = info.get("ext", "mp4")
 
     size_bytes = info.get("filesize") or info.get("filesize_approx")
     if not size_bytes and best_format:
@@ -137,8 +145,10 @@ def _build_result(info: dict, platform: str, video_url: str = None) -> dict:
 
     return {
         "platform": platform,
-        "caption": clean_caption(caption_source),
-        "format": info.get("ext", "mp4"),
+        "caption": cleaned_caption,
+        "title": info.get("title") or filename_source,
+        "filename": _safe_filename(filename_source, ext),
+        "format": ext,
         "size": format_size(size_bytes),
         "duration": format_duration(duration_seconds),
         "video_url": video_url,
@@ -191,6 +201,8 @@ def download_with_ytdlp(url: str, platform: str) -> tuple:
     file_path once it's done streaming it.
     """
     tmp_dir = tempfile.mkdtemp(prefix="amd_")
+
+
     output_template = os.path.join(tmp_dir, "%(id)s.%(ext)s")
 
     ydl_options = {
@@ -213,8 +225,7 @@ def download_with_ytdlp(url: str, platform: str) -> tuple:
     if not info or not file_path or not os.path.exists(file_path):
         raise DownloaderError("yt-dlp did not produce a downloaded file")
 
-    # The actual local file is the source of truth for size — more accurate
-    # than any filesize/filesize_approx metadata yt-dlp may have guessed.
+
     result = _build_result(info, platform, video_url=info.get("webpage_url") or url)
     result["size"] = format_size(os.path.getsize(file_path))
 

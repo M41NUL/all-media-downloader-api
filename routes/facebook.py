@@ -1,8 +1,3 @@
-# ============================================
-# ROUTE FILE - FACEBOOK
-# API endpoint for Facebook video extraction
-# ============================================
-
 import time
 from fastapi import APIRouter, Query, Request, HTTPException, Depends
 
@@ -41,6 +36,8 @@ def get_facebook_video(
     return {
         "success": True,
         "caption": result["caption"],
+        "title": result.get("title"),
+        "filename": result.get("filename"),
         "platform": result["platform"],
         "format": result["format"],
         "size": result["size"],

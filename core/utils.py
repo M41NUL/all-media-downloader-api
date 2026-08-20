@@ -1,9 +1,3 @@
-# ============================================
-# CORE MODULE - UTILS
-# Shared formatting and helper functions
-# ============================================
-
-
 def format_size(size_bytes) -> str:
     if not size_bytes or size_bytes <= 0:
         return "unknown"

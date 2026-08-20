@@ -1,8 +1,3 @@
-# ============================================
-# DATABASE FILE
-# Firebase connection and stats logging
-# ============================================
-
 import json
 import time
 import firebase_admin

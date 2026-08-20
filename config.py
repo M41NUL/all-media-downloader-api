@@ -1,14 +1,6 @@
-# ============================================
-# CONFIG FILE
-# Application configuration and developer information
-# ============================================
-
 import os
 from datetime import datetime
 
-# ------------------------------------------------
-# DEVELOPER INFORMATION
-# ------------------------------------------------
 
 AUTHOR = "Md. Mainul Islam"
 OWNER = "CODEX-M41NUL"
@@ -28,37 +20,32 @@ YOUTUBE = "https://youtube.com/@codexm41nul"
 YEAR = datetime.now().year
 COPYRIGHT = f"Copyright {YEAR} CODEX-M41NUL. All Rights Reserved."
 
-# ------------------------------------------------
-# API KEY SETTINGS
-# ------------------------------------------------
 
 API_KEY = os.environ.get("API_KEY", "m41nul")
 
-# ------------------------------------------------
-# SERVER SETTINGS
-# ------------------------------------------------
 
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 8000))
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 
-# ------------------------------------------------
-# FIREBASE SETTINGS
-# ------------------------------------------------
 
 FIREBASE_CREDENTIALS_JSON = os.environ.get("FIREBASE_CREDENTIALS_JSON", "")
 FIREBASE_DATABASE_URL = os.environ.get("FIREBASE_DATABASE_URL", "")
 
-# ------------------------------------------------
-# DOWNLOAD SETTINGS
-# ------------------------------------------------
 
 REQUEST_TIMEOUT_SECONDS = int(os.environ.get("REQUEST_TIMEOUT_SECONDS", 60))
 MAX_CAPTION_LENGTH = None
 PREFERRED_QUALITY = "best"
 
-# ------------------------------------------------
-# CORS SETTINGS
-# ------------------------------------------------
+
+FILENAME_BRAND_SUFFIX = os.environ.get("FILENAME_BRAND_SUFFIX", "All Media Downloader")
+MAX_FILENAME_LENGTH = int(os.environ.get("MAX_FILENAME_LENGTH", 150))
+
+
+YTDLP_AUTO_UPDATE = os.environ.get("YTDLP_AUTO_UPDATE", "true").lower() == "true"
+YTDLP_UPDATE_CHECK_INTERVAL_SECONDS = int(
+    os.environ.get("YTDLP_UPDATE_CHECK_INTERVAL_SECONDS", 6 * 60 * 60)
+)
+
 
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")

@@ -1,8 +1,3 @@
-# ============================================
-# CORE MODULE - DETECTOR
-# Detects which platform a given URL belongs to
-# ============================================
-
 import re
 
 TIKTOK_PATTERN = re.compile(r"(tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)", re.IGNORECASE)
