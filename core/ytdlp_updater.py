@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import threading
@@ -53,8 +54,14 @@ def check_and_update() -> dict:
     success = update_ytdlp()
 
     if success:
-        _last_update_status = f"updated_to_{latest}_pending_restart"
-        print(f"[yt-dlp-updater] yt-dlp updated to {latest}. Restart process to load new version.")
+        _last_update_status = f"updated_to_{latest}_restarting"
+        print(f"[yt-dlp-updater] yt-dlp updated to {latest}. Restarting process to load new version...")
+        # pip install doesn't reload the already-imported yt_dlp module in this
+        # running process, so the new version silently never takes effect until
+        # the process restarts. Force a clean exit; Render (and any process
+        # manager with autoRestart) will immediately spin up a fresh process
+        # that imports the newly installed version.
+        threading.Timer(2, lambda: os._exit(0)).start()
     else:
         _last_update_status = "update_failed"
         print("[yt-dlp-updater] yt-dlp update failed, will retry on next check.")
